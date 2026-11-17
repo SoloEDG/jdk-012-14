@@ -24,6 +24,34 @@ export default function App() {
   const [help, setHelp] = useState(false);
   const [side, setSide] = useState("works");
   const a = artworkById(g.catalog.active);
+  const nearbyArtwork = artworkById(g.catalog.nearby);
+  const attention = g.catalog.snapshot;
+  const playingArtwork = artworkById(g.narration.state.artworkId);
+  // 场景提示：关注是否成立、是否正在讲解、是否仍有别的作品在视线里徘徊。
+  const activeAlert =
+    !!nearbyArtwork &&
+    !!g.catalog.active &&
+    nearbyArtwork.id !== g.catalog.active &&
+    !attention.settled;
+  const sceneLabel = !a
+    ? { title: "万物之间 · 主展厅", hint: "拖动视角，发现你的下一次共鸣" }
+    : attention.selectedVisible
+      ? {
+          title: a.title,
+          hint:
+            playingArtwork?.id === a.id && g.narration.state.playing
+              ? "正在讲解 · 视线离开将交出介绍"
+              : "已建立关注 · 可收听讲解",
+        }
+      : attention.active
+        ? { title: a.title, hint: "视线离开 · 稍后交还介绍" }
+        : { title: "万物之间 · 主展厅", hint: "视线停留片刻，介绍才会切换" };
+  const nearbyLabel = activeAlert
+    ? { title: nearbyArtwork.title, hint: "视线停留中 · 即将切换介绍" }
+    : null;
+  const focusTitle =
+    !a && nearbyArtwork ? nearbyArtwork.title : sceneLabel.title;
+  const focusHint = nearbyLabel ? nearbyLabel.hint : sceneLabel.hint;
   return (
     <div className="app">
       <header>
@@ -113,9 +141,9 @@ export default function App() {
           )}
           <TourPanel
             state={g.tour.state}
-            onStart={g.tour.start}
+            onStart={g.startTour}
             onPause={g.pauseTour}
-            onResume={g.tour.resume}
+            onResume={g.resumeTour}
             onStop={g.stopTour}
             onNext={g.nextTour}
           />
@@ -162,14 +190,10 @@ export default function App() {
               </button>
             </div>
             <div className="center-cross">+</div>
-            <div className="scene-location">
+            <div className="scene-location" data-testid="scene-location">
               <MapPin size={15} />
-              {g.catalog.nearby ? a?.title : "万物之间 · 主展厅"}
-              <small>
-                {g.catalog.nearby
-                  ? "靠近作品 · 可收听讲解"
-                  : "拖动视角，发现你的下一次共鸣"}
-              </small>
+              <span data-testid="focus-title">{focusTitle}</span>
+              <small>{focusHint}</small>
             </div>
             <div
               className="mini-map"
@@ -219,7 +243,7 @@ export default function App() {
             </div>
             <button
               onClick={() => {
-                g.tour.start("nature");
+                g.startTour("nature");
                 setTab("journeys");
               }}
             >
@@ -252,9 +276,9 @@ export default function App() {
               </div>
               <TourPanel
                 state={g.tour.state}
-                onStart={g.tour.start}
+                onStart={g.startTour}
                 onPause={g.pauseTour}
-                onResume={g.tour.resume}
+                onResume={g.resumeTour}
                 onStop={g.stopTour}
                 onNext={g.nextTour}
               />
@@ -294,9 +318,16 @@ export default function App() {
       )}
       <AudioPlayer
         state={g.narration.state}
+        focusId={g.catalog.active}
         caption={g.narration.caption}
         supported={g.narration.supported}
-        onToggle={g.narration.toggle}
+        onToggle={() => {
+          const id = g.catalog.active;
+          if (!id) return;
+          // 播放条上的播放键：讲解对象就是当前介绍对象。
+          if (g.narration.state.artworkId === id) g.narration.toggle();
+          else g.narration.play(id);
+        }}
         onSeek={g.narration.seek}
         onRate={g.narration.rate}
       />

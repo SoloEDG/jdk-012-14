@@ -1,17 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 import type { Point } from "../../../shared/types";
 import { approach, constrain } from "../lib/motion";
-export function useWalker(onPosition: (p: Point) => void) {
+export function useWalker() {
   const [position, setPosition] = useState<Point>({ x: 3, z: 6.5 });
   const positionRef = useRef(position);
   const target = useRef<Point | null>(null);
   const keys = useRef(new Set<string>());
   const yaw = useRef(0);
-  const callback = useRef(onPosition);
-  callback.current = onPosition;
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).closest("input,textarea,select")) return;
+      const focused = e.target as HTMLElement | null;
+      if (focused?.closest?.("input,textarea,select")) return;
       if (
         [
           "w",
@@ -41,8 +40,12 @@ export function useWalker(onPosition: (p: Point) => void) {
       last = now;
       let p = positionRef.current;
       const k = keys.current;
-      if (target.current) p = approach(p, target.current, dt);
-      else {
+      if (target.current) {
+        const goal = target.current;
+        p = approach(p, goal, dt);
+        // 到达后立即清除目标，外部的“正在行走”判断才能及时结束。
+        if (Math.hypot(goal.x - p.x, goal.z - p.z) < 0.04) target.current = null;
+      } else {
         const f =
           Number(k.has("w") || k.has("arrowup")) -
           Number(k.has("s") || k.has("arrowdown"));
@@ -71,7 +74,6 @@ export function useWalker(onPosition: (p: Point) => void) {
       ) {
         positionRef.current = p;
         setPosition(p);
-        callback.current(p);
       }
       frame = requestAnimationFrame(tick);
     };
@@ -93,5 +95,7 @@ export function useWalker(onPosition: (p: Point) => void) {
     stop: () => {
       target.current = null;
     },
+    /** 是否还在自动前往某个观看点。 */
+    traveling: () => target.current !== null,
   };
 }

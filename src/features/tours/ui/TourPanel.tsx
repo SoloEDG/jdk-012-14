@@ -35,10 +35,12 @@ export function TourPanel({
           </span>
           <h3>{current.name}</h3>
           <progress value={tourProgress(state)} max="1" />
-          <p>
+          <p data-testid="tour-status">
             {state.phase === "done"
               ? "这段旅程已完成，收藏你的所见。"
-              : `${state.phase === "walking" ? "正在前往" : state.phase === "paused" ? "导览已暂停" : "正在讲解"} · ${artworkById(current.stops[state.step])?.title}`}
+              : state.phase === "paused" && state.pausedReason === "diverted"
+                ? `在「${artworkById(current.stops[state.step])?.title}」等你回来 · 看回作品即继续`
+                : `${state.phase === "walking" ? "正在前往" : state.phase === "paused" ? "导览已暂停" : "正在讲解"} · ${artworkById(current.stops[state.step])?.title}`}
           </p>
           <div className="tour-controls">
             {state.phase !== "done" && (

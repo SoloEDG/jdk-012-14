@@ -24,8 +24,30 @@ export function useTour() {
           ? { ...t, phase: "done" }
           : { ...t, step: t.step + 1, phase: "walking" };
       }),
-    pause: () => setState((t) => ({ ...t, phase: "paused" })),
-    resume: () => setState((t) => ({ ...t, phase: "walking" })),
+    /** 暂停时记住当前阶段与原因，恢复后不会把“讲解”误变回“行走”。 */
+    pause: (reason: "user" | "diverted" = "user") =>
+      setState((t) => {
+        if (t.phase === "paused")
+          return t.pausedReason === reason ? t : { ...t, pausedReason: reason };
+        if (t.phase === "idle" || t.phase === "done") return t;
+        return {
+          ...t,
+          phase: "paused",
+          pausedFrom: t.phase,
+          pausedReason: reason,
+        };
+      }),
+    resume: () =>
+      setState((t) =>
+        t.phase === "paused"
+          ? {
+              ...t,
+              phase: t.pausedFrom === "listening" ? "listening" : "walking",
+              pausedFrom: undefined,
+              pausedReason: undefined,
+            }
+          : t,
+      ),
     stop: () => setState(initial),
   };
 }
